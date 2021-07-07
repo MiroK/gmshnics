@@ -98,3 +98,23 @@ def test_load_dump():
     mesh, entity_fs = g4x.load_h5('test.h5', entity_f_names=None)
     assert 'entity_f_1' in entity_fs
     assert entity_fs['entity_f_1'].dim() == 1
+
+
+def test_rectangle_aniso():
+    # The idea here is that spacing on 1 should be finer than elsewhere
+    ll = np.array([1, 1])
+    ur = np.array([3, 5])
+    mesh, facet_f = g4x.gRectangle(ll, ur, {1: {'SizeMin': 0.01, 'DistMin': 0.1, 'DistMax': 0.1, 'SizeMax': 0.1}})
+
+    x = mesh.coordinates()
+    _, e2v = mesh.init(1, 0), mesh.topology()(1, 0)
+
+    sizes = {}
+    for tag in (1, 2, 3, 4):
+        # Compute mean vertex spacing on the boudary
+        edges, = np.where(facet_f.array() == tag)
+        v0, v1 = np.column_stack([e2v(e) for e in edges])
+        hs = np.linalg.norm(x[v1] - x[v0], 2, 1)
+        sizes[tag] = np.mean(hs)
+
+    assert 1 == min(sizes, key=lambda k: sizes[k]), sizes
