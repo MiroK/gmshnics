@@ -63,8 +63,8 @@ def gRectangle(ll, ur, size, view=False):
     # Point by point
     # 4 3  
     # 1 2
-    A = factory.addPoint(ll[0], ll[0], 0)
-    B = factory.addPoint(ur[0], ll[0], 0)
+    A = factory.addPoint(ll[0], ll[1], 0)
+    B = factory.addPoint(ur[0], ll[1], 0)
     C = factory.addPoint(ur[0], ur[1], 0)
     D = factory.addPoint(ll[0], ur[1], 0)
 
