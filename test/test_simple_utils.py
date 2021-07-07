@@ -1,6 +1,7 @@
 import pytest
 import gmshnics as g4x
 import numpy as np
+import os
 
 
 def test_circle(resolution=0.1, tol=1E-3):
@@ -28,7 +29,7 @@ def test_circle(resolution=0.1, tol=1E-3):
         assert radius-tol < np.linalg.norm(x0 - center, 2) < radius+tol
         assert radius-tol < np.linalg.norm(x1 - center, 2) < radius+tol
 
-    return mesh
+    return mesh, facet_f
 
 
 def test_rectangle(resolution=0.1, tol=1E-3):
@@ -46,11 +47,11 @@ def test_rectangle(resolution=0.1, tol=1E-3):
 
     # Taggeting checks out
     assert facet_f.dim() == 1
-    facet_f = facet_f.array()
-    bdry_idx, = np.where(facet_f > 0)
+    facet_arr = facet_f.array()
+    bdry_idx, = np.where(facet_arr > 0)
     assert len(bdry_idx)
     
-    assert set(facet_f) == {0, 1, 2, 3, 4}
+    assert set(facet_arr) == {0, 1, 2, 3, 4}
 
     transforms = {1: lambda y: (y - ll)[:, 0],
                   2: lambda y: (y - ur)[:, 0],
@@ -61,18 +62,39 @@ def test_rectangle(resolution=0.1, tol=1E-3):
 
     for tag, transform in transforms.items():
         # Get facet vertices (as index)
-        indices = np.unique(np.hstack([e2v(e) for e in np.where(facet_f == tag)[0]]))
+        indices = np.unique(np.hstack([e2v(e) for e in np.where(facet_arr == tag)[0]]))
         assert np.all(transform(x[indices]) < tol)
 
-    return mesh
+    return mesh, facet_f
 
 
-@pytest.mark.parametrize('f', (test_circle, ))
+@pytest.mark.parametrize('f', (test_circle, test_rectangle))
 def test_refine(f):
     prev = None
     for resolution in (0.1, 0.08, 0.05):
-        mesh = f(resolution)
+        mesh, _ = f(resolution)
         hmin = mesh.hmin()
 
         assert prev is None or hmin < prev
         prev = hmin
+
+        
+def test_load_dump():
+    mesh, foo = test_circle(resolution=0.1, tol=1E-3)
+    # With given name
+    g4x.dump_h5('test.h5', mesh, {'foo_1': foo})
+    mesh, entity_fs = g4x.load_h5('test.h5', entity_f_names=('foo_1', ))
+    assert 'foo_1' in entity_fs
+    assert entity_fs['foo_1'].dim() == 1
+
+    # With found name
+    g4x.dump_h5('test.h5', mesh, {'foo_1': foo})
+    mesh, entity_fs = g4x.load_h5('test.h5', entity_f_names=None)
+    assert 'foo_1' in entity_fs
+    assert entity_fs['foo_1'].dim() == 1
+
+    # With auto name
+    g4x.dump_h5('test.h5', mesh, (foo, ))
+    mesh, entity_fs = g4x.load_h5('test.h5', entity_f_names=None)
+    assert 'entity_f_1' in entity_fs
+    assert entity_fs['entity_f_1'].dim() == 1
