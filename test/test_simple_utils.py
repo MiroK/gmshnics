@@ -99,6 +99,8 @@ def test_load_dump():
     assert 'entity_f_1' in entity_fs
     assert entity_fs['entity_f_1'].dim() == 1
 
+    os.remove('test.h5')
+    
 
 def test_rectangle_aniso():
     # The idea here is that spacing on 1 should be finer than elsewhere
