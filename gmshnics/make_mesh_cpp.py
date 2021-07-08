@@ -1,5 +1,7 @@
 from dolfin import compile_cpp_code as compile_cpp
 from dolfin import Mesh, MeshEditor
+import dolfin as df
+import numpy as np
 
 code='''
 #include <pybind11/pybind11.h>
@@ -73,5 +75,25 @@ def build_mesh(coordinates, cells, cell, mesh=None):
     tdim = cell.topological_dimension()
     gdim = cell.geometric_dimension()
     module.fill_mesh(coordinates.flatten(), cells.flatten(), tdim, gdim, mesh)
-    
+
+    X = mesh.coordinates()    
+    # The mesh better be non-degenerate
+    # For 2d we do an complex number trick in addition ...
+    if gdim == 2:
+        x, y = X.T
+        has_duplicates = len(np.unique(x+1j)) == len(x)
+    else:
+        has_duplicates = False
+    # ... edge lengths check
+    _, e2v = mesh.init(1, 0), mesh.topology()(1, 0)
+    v0, v1 = np.column_stack([e2v(e) for e in range(mesh.num_entities(1))])
+    edge_lengths = np.linalg.norm(X[v0] - X[v1], 2, axis=1)
+
+    assert not has_duplicates and np.min(edge_lengths) > 1E-13
+
+    # There should be non degenerate cells (additional check)
+    assert min(cell.volume() for cell in df.cells(mesh)) > 1E-13
+
+    print('Created mesh mesh quality', df.MeshQuality.radius_ratio_min_max(mesh))
+
     return mesh

@@ -93,35 +93,9 @@ def gRectangle(ll, ur, size, view=False):
         number_options = None
         # Set size field
         assert size.keys() <= set((1, 2, 3, 4))
-        assert all(v.keys() == set(('SizeMax', 'DistMax', 'SizeMin', 'DistMin'))
-                   for v in size.values())
 
-        field = model.mesh.field
-        
-        field_tag = 0
-        thresholds = []
-        for phys_tag, curve_sizes in size.items():
-            field_tag += 1
-            field.add('Distance', field_tag)
-            print(bdry, bdry[phys_tag-1], phys_tag)
-            field.setNumbers(field_tag, 'CurvesList', [bdry[phys_tag-1]])
-            field.setNumber(field_tag, 'NumPointsPerCurve', 100)
-
-            field_tag += 1
-            field.add('Threshold', field_tag)
-            field.setNumber(field_tag, 'InField', field_tag-1)
-            # Set spec
-            for prop in curve_sizes:
-                field.setNumber(field_tag, prop, curve_sizes[prop])
-            # Collect for setting final min
-            thresholds.append(field_tag)
-
-        min_field_tag = max(thresholds) + 1
-        field.add('Min', min_field_tag)
-        field.setNumbers(min_field_tag, 'FieldsList', thresholds)    
-        field.setAsBackgroundMesh(min_field_tag)
-
-        factory.synchronize()
+        curves = {tag: (c, ) for tag, c in enumerate(bdry, 1)}
+        set_curve_distance_field(size, curves, model, factory)
     else:
         number_options = {'Mesh.CharacteristicLengthFactor': size}
 
@@ -135,3 +109,40 @@ def gRectangle(ll, ur, size, view=False):
     gmsh.finalize()
 
     return mesh, entity_functions[1]
+
+
+def set_curve_distance_field(sizes, curves, model, factory):
+    '''
+    Set mesh size specifying for each physical curve group the gmsh
+    Threshold field. Here curves maps phys tag to list of curve indices
+    '''
+    assert all(v.keys() == set(('SizeMax', 'DistMax', 'SizeMin', 'DistMin'))
+               for v in sizes.values())
+
+    field = model.mesh.field
+        
+    field_tag = 0
+    thresholds = []
+    for phys_tag, curve_sizes in sizes.items():
+        field_tag += 1
+        field.add('Distance', field_tag)
+        field.setNumbers(field_tag, 'CurvesList', curves[phys_tag])
+        field.setNumber(field_tag, 'NumPointsPerCurve', 100)
+
+        field_tag += 1
+        field.add('Threshold', field_tag)
+        field.setNumber(field_tag, 'InField', field_tag-1)
+        # Set spec
+        for prop in curve_sizes:
+            field.setNumber(field_tag, prop, curve_sizes[prop])
+        # Collect for setting final min
+        thresholds.append(field_tag)
+
+    min_field_tag = max(thresholds) + 1
+    field.add('Min', min_field_tag)
+    field.setNumbers(min_field_tag, 'FieldsList', thresholds)    
+    field.setAsBackgroundMesh(min_field_tag)
+
+    factory.synchronize()
+
+    return min_field_tag
