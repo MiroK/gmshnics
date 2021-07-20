@@ -89,9 +89,9 @@ def mesh_from_gmsh(nodes, element_data, TOL=1E-13):
     cells_as_nodes = np.fromiter((node_map[c] for c in cells_as_nodes.ravel()),
                                  dtype=cells_as_nodes.dtype).reshape(cells_as_nodes.shape)
 
-    print(f'Mesh has {len(cells_as_nodes)} cells.')
+    print(f'Mesh has {len(cells_as_nodes)} cells of type {cell_elm}.')
     # Cell-node-connectivity is enough to build mesh
-    elm_name = {1: 'interval', 2: 'triangle', 4: 'tetrahedron'}
+    elm_name = {1: 'interval', 2: 'triangle', 3: 'tetrahedron'}
     cell_tdim = elm_tdim[cell_elm]
     # Since gmsh has nodes always as 3d we infer gdim from whether last
     # axis is 0

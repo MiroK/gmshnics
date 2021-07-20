@@ -95,7 +95,7 @@ def gRectangle(ll, ur, size, view=False):
         assert size.keys() <= set((1, 2, 3, 4))
 
         curves = {tag: (c, ) for tag, c in enumerate(bdry, 1)}
-        set_curve_distance_field(size, curves, model, factory)
+        set_facet_distance_field(size, curves, model, factory, 1)
     else:
         number_options = {'Mesh.CharacteristicLengthFactor': size}
 
@@ -111,30 +111,99 @@ def gRectangle(ll, ur, size, view=False):
     return mesh, entity_functions[1]
 
 
-def set_curve_distance_field(sizes, curves, model, factory):
+def gBox(ll, ur, size, view=False):
     '''
-    Set mesh size specifying for each physical curve group the gmsh
-    Threshold field. Here curves maps phys tag to list of curve indices
+    Box marked by lower left and upper right corners. The returned
+    facet funtion is such that
+      4
+    1   2   5 z---> 6
+      3
+    If size is dict then we expact a mapping from tag to specs of Threshold
+    field in gmsh, i.e. SizeMax for size if thresholded > DistMax and 
+    analogously for SizeMin and DistMin
+    '''
+    ll, ur = np.array(ll), np.array(ur)
+
+    dx, dy, dz = ur - ll
+    assert dx > 0 and dy > 0 and dz > 0
+    
+    gmsh.initialize()
+    
+    model = gmsh.model
+    factory = model.occ
+
+    box = factory.addBox(x=ll[0], y=ll[1], z=ll[2], dx=dx, dy=dy, dz=dz)
+
+    factory.synchronize()
+
+    model.addPhysicalGroup(3, [box], tag=1)
+
+    bdries = [(1, 0, ll), (2, 0, ur), (3, 1, ll), (4, 1, ur), (5, 2, ll), (6, 2, ur)]
+    # For marking look at centers of mass of the surfaces
+    while bdries:
+        tag, axis, point = bdries.pop()
+        surfs = iter(model.getEntities(2))
+        found = False
+        while not found:
+            surface = next(surfs)
+            com = factory.getCenterOfMass(*surface)
+            found = abs(com[axis] - point[axis]) < 1E-10
+        assert found
+        
+        dim, index = surface
+        model.addPhysicalGroup(dim, [index], tag)
+
+    factory.synchronize()    
+
+    if isinstance(size, dict):
+        number_options = None
+        # Set size field
+        assert size.keys() <= set((1, 2, 3, 4, 5, 6))
+
+        surfs = {tag: (c[1], ) for tag, c in enumerate(model.getEntities(2), 1)}
+        set_facet_distance_field(size, surfs, model, factory, 2)
+    else:
+        number_options = {'Mesh.CharacteristicLengthFactor': size}
+
+    nodes, topologies = g4x.msh_gmsh_model(model,
+                                           3,
+                                           number_options=number_options,
+                                           view=view)
+
+    mesh, entity_functions = g4x.mesh_from_gmsh(nodes, topologies)
+
+    gmsh.finalize()
+
+    return mesh, entity_functions[2]
+
+# --------------------------------------------------------------------
+
+def set_facet_distance_field(sizes, facets, model, factory, tdim):
+    '''
+    Set mesh size specifying for each physical facet group the gmsh
+    Threshold field. Here facets maps phys tag to list of facet indices
     '''
     assert all(v.keys() == set(('SizeMax', 'DistMax', 'SizeMin', 'DistMin'))
                for v in sizes.values())
 
     field = model.mesh.field
+
+    facets_list = {1: 'CurvesList', 2: 'SurfacesList'}[tdim]
         
     field_tag = 0
     thresholds = []
-    for phys_tag, curve_sizes in sizes.items():
+    for phys_tag, facet_sizes in sizes.items():
         field_tag += 1
         field.add('Distance', field_tag)
-        field.setNumbers(field_tag, 'CurvesList', curves[phys_tag])
+        field.setNumbers(field_tag, facets_list, facets[phys_tag])
         field.setNumber(field_tag, 'NumPointsPerCurve', 100)
 
         field_tag += 1
         field.add('Threshold', field_tag)
         field.setNumber(field_tag, 'InField', field_tag-1)
         # Set spec
-        for prop in curve_sizes:
-            field.setNumber(field_tag, prop, curve_sizes[prop])
+        for prop in facet_sizes:
+            field.setNumber(field_tag, prop, facet_sizes[prop])
         # Collect for setting final min
         thresholds.append(field_tag)
 
