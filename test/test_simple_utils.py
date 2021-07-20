@@ -178,3 +178,23 @@ def test_box_aniso():
         sizes[tag] = np.mean(hs)
 
     assert 1 == min(sizes, key=lambda k: sizes[k]), sizes
+
+
+def test_rectangle_surface(resolution=0.1, tol=1E-3):
+    ll = np.array([1, 2])
+    ur = np.array([3, 4])
+    mesh, cell_f = g4x.gRectangleSurface(ll, ur, resolution)
+
+    assert mesh.topology().dim() == 1
+    assert mesh.geometry().dim() == 2
+    assert cell_f.dim() == 1
+
+    
+def test_box_surface(resolution=1.0, tol=1E-3):
+    ll = np.array([1, 2, 0])
+    ur = np.array([3, 4, 2])
+    mesh, cell_f = g4x.gBoxSurface(ll, ur, resolution)
+
+    assert mesh.topology().dim() == 2
+    assert mesh.geometry().dim() == 3
+    assert cell_f.dim() == 2
