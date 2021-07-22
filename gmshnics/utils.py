@@ -1,4 +1,15 @@
 import dolfin as df
+import itertools
+
+
+def first(iterable):
+    '''[0]'''
+    return next(iter(iterable))
+
+
+def second(iterable):
+    '''[1]'''
+    return first(itertools.islice(iterable, 1, None))
 
 
 def valid_key(name):
