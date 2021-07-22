@@ -7,7 +7,8 @@ import os
 def test_circle(resolution=0.1, tol=1E-3):
     center = np.array([1, 2])
     radius = 0.8
-    mesh, facet_f = g4x.gCircle(center, radius, resolution)
+    mesh, entity_fs = g4x.gCircle(center, radius, resolution)
+    facet_f = entity_fs[1]
 
     assert mesh.topology().dim() == 2
     assert mesh.geometry().dim() == 2
@@ -35,7 +36,8 @@ def test_circle(resolution=0.1, tol=1E-3):
 def test_rectangle(resolution=0.1, tol=1E-3):
     ll = np.array([1, 2])
     ur = np.array([3, 4])
-    mesh, facet_f = g4x.gRectangle(ll, ur, resolution)
+    mesh, entity_fs = g4x.gRectangle(ll, ur, resolution)
+    facet_f = entity_fs[1]
 
     assert mesh.topology().dim() == 2
     assert mesh.geometry().dim() == 2
@@ -71,7 +73,8 @@ def test_rectangle(resolution=0.1, tol=1E-3):
 def test_box(resolution=1.0, tol=1E-3):
     ll = np.array([1, 2, 0])
     ur = np.array([3, 4, 2])
-    mesh, facet_f = g4x.gBox(ll, ur, resolution)
+    mesh, entity_fs = g4x.gBox(ll, ur, resolution)
+    facet_f = entity_fs[2]
 
     assert mesh.topology().dim() == 3
     assert mesh.geometry().dim() == 3
@@ -144,7 +147,8 @@ def test_rectangle_aniso():
     # The idea here is that spacing on 1 should be finer than elsewhere
     ll = np.array([1, 1])
     ur = np.array([3, 5])
-    mesh, facet_f = g4x.gRectangle(ll, ur, {1: {'SizeMin': 0.01, 'DistMin': 0.1, 'DistMax': 0.1, 'SizeMax': 0.1}})
+    mesh, entity_fs = g4x.gRectangle(ll, ur, {1: {'SizeMin': 0.01, 'DistMin': 0.1, 'DistMax': 0.1, 'SizeMax': 0.1}})
+    facet_f = entity_fs[1]
 
     x = mesh.coordinates()
     _, e2v = mesh.init(1, 0), mesh.topology()(1, 0)
@@ -164,7 +168,8 @@ def test_box_aniso():
     # The idea here is that spacing on 1 should be finer than elsewhere
     ll = np.array([1, 1, 0])
     ur = np.array([3, 2, 1])
-    mesh, facet_f = g4x.gBox(ll, ur, {1: {'SizeMin': 0.1, 'DistMin': 0.1, 'DistMax': 0.2, 'SizeMax': 1.}})
+    mesh, entity_fs = g4x.gBox(ll, ur, {1: {'SizeMin': 0.1, 'DistMin': 0.1, 'DistMax': 0.2, 'SizeMax': 1.}})
+    facet_f = entity_fs[2]
 
     x = mesh.coordinates()
     _, f2v = mesh.init(2, 0), mesh.topology()(2, 0)
@@ -183,7 +188,8 @@ def test_box_aniso():
 def test_rectangle_surface(resolution=0.1, tol=1E-3):
     ll = np.array([1, 2])
     ur = np.array([3, 4])
-    mesh, cell_f = g4x.gRectangleSurface(ll, ur, resolution)
+    mesh, entity_fs = g4x.gRectangleSurface(ll, ur, resolution)
+    cell_f = entity_fs[1]    
 
     assert mesh.topology().dim() == 1
     assert mesh.geometry().dim() == 2
@@ -193,7 +199,8 @@ def test_rectangle_surface(resolution=0.1, tol=1E-3):
 def test_box_surface(resolution=1.0, tol=1E-3):
     ll = np.array([1, 2, 0])
     ur = np.array([3, 4, 2])
-    mesh, cell_f = g4x.gBoxSurface(ll, ur, resolution)
+    mesh, entity_fs = g4x.gBoxSurface(ll, ur, resolution)
+    cell_f = entity_fs[2]    
 
     assert mesh.topology().dim() == 2
     assert mesh.geometry().dim() == 3

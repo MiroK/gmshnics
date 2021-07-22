@@ -1,10 +1,77 @@
 from gmshnics.make_mesh_cpp import build_mesh
-from functools import reduce
+from gmshnics.utils import second, set_facet_distance_field
+
+from collections import defaultdict
+from functools import reduce, wraps
+
 import dolfin as df
 import numpy as np
 import operator
 import gmsh
 import ufl
+
+
+def occ(tdim, fdim):
+    '''
+    Mesh the tdim entities of the model use optionally as size field 
+    the distance to fdim-entities
+    '''
+    def mesh_it(f):
+        @wraps(f)
+        def wrapper(*args, **kwds):
+            gmsh.initialize()
+            model = gmsh.model
+            factory = model.occ
+            # Create model expecting size info, model and factory are
+            # looked up in this scope
+            kwds.update({'model': model, 'factory': factory})
+            
+            size = f(*args, **kwds)
+            # Mesh using size info
+            factory.synchronize()
+
+            number_options = kwds.get('number_options', None)
+            if number_options is None:
+                number_options = {}
+                
+            string_options = kwds.get('string_options', None)
+            if string_options is None:
+                string_options = {}
+
+            if isinstance(size, dict):
+                # We want to remove size stuff from number options and
+                # set size field
+                if 'Mesh.CharacteristicLengthFactor' in number_options:
+                    del number_options['Mesh.CharacteristicLengthFactor']
+                # The size dict refers to entities by their physical group
+                # so let's get those allowed
+                facets = defaultdict(list)
+                [facets[ptag].append(second(entity))
+                 for entity in model.getEntities(fdim)
+                 for ptag in model.getPhysicalGroupsForEntity(fdim, second(entity))]
+                
+                assert size.keys() <= facets.keys()
+
+                set_facet_distance_field(size, facets, model, factory, fdim)
+            # Otherwise we just a number for char size
+            else:
+                number_options['Mesh.CharacteristicLengthFactor'] = size
+
+            nodes, topologies = msh_gmsh_model(
+                model,
+                tdim,
+                # Globally refine
+                number_options=number_options,
+                string_options=string_options,
+                view=kwds.get('view', False))
+
+            mesh, entity_functions = mesh_from_gmsh(nodes, topologies)
+
+            gmsh.finalize()
+
+            return mesh, entity_functions
+        return wrapper
+    return mesh_it
 
 
 def msh_gmsh_model(model, dim, number_options=None, string_options=None, view=False):

@@ -2,17 +2,12 @@ import gmshnics as g4x
 import numpy as np
 import gmsh
 
-
-def gCircle(center, radius, size, view=False):
+@g4x.occ(2, 1)
+def gCircle(center, radius, size, model, factory, view=False):
     '''
     Centered at center with radius. Returns mesh and FacetFunction 
     with outer boundary set to 1
     '''
-    gmsh.initialize()
-    
-    model = gmsh.model
-    factory = model.occ
-
     cx, cy = center
     circle = factory.addCircle(cx, cy, 0, radius)
     loop = factory.addCurveLoop([circle])
@@ -27,22 +22,16 @@ def gCircle(center, radius, size, view=False):
     for tag, curve in enumerate(bdry, 1):
         model.addPhysicalGroup(1, [curve[1]], tag)
 
-    factory.synchronize()    
-
-    nodes, topologies = g4x.msh_gmsh_model(model,
-                                           2,
-                                           # Globally refine
-                                           number_options={'Mesh.CharacteristicLengthFactor': size},
-                                           view=view)
-
-    mesh, entity_functions = g4x.mesh_from_gmsh(nodes, topologies)
-
-    gmsh.finalize()
-
-    return mesh, entity_functions[1]
+    return size
 
 
-def gRectangle(ll, ur, size, view=False):
+def gUnitCircle(size):
+    '''(0, 0) with 1'''
+    return g.Circle(np.array([0, 0]), 1, size)
+
+
+@g4x.occ(2, 1)
+def gRectangle(ll, ur, size, model, factory, view=False):
     '''
     Rectangle marked by lower left and upper right corners. The returned
     facet funtion is such that
@@ -58,11 +47,6 @@ def gRectangle(ll, ur, size, view=False):
     dx, dy = ur - ll
     assert dx > 0 and dy > 0
     
-    gmsh.initialize()
-    
-    model = gmsh.model
-    factory = model.occ
-
     # Point by point
     # 4 3  
     # 1 2
@@ -85,33 +69,18 @@ def gRectangle(ll, ur, size, view=False):
     
     bdry = (left, right, bottom, top)
     for tag, curve in enumerate(bdry, 1):
-        model.addPhysicalGroup(1, [curve], tag)
+        model.addPhysicalGroup(1, [curve], tag)    
 
-    factory.synchronize()    
-
-    if isinstance(size, dict):
-        number_options = None
-        # Set size field
-        assert size.keys() <= set((1, 2, 3, 4))
-
-        curves = {tag: (c, ) for tag, c in enumerate(bdry, 1)}
-        set_facet_distance_field(size, curves, model, factory, 1)
-    else:
-        number_options = {'Mesh.CharacteristicLengthFactor': size}
-
-    nodes, topologies = g4x.msh_gmsh_model(model,
-                                           2,
-                                           number_options=number_options,
-                                           view=view)
-
-    mesh, entity_functions = g4x.mesh_from_gmsh(nodes, topologies)
-
-    gmsh.finalize()
-
-    return mesh, entity_functions[1]
+    return size
 
 
-def gRectangleSurface(ll, ur, size, view=False):
+def gUnitSquare(size):
+    '''(0, 1)^2'''
+    return g.Rectangle(np.array([0, 0]), np.array([1, 1]), size)
+
+
+@g4x.occ(1, 1)
+def gRectangleSurface(ll, ur, size, model, factory, view=False):
     '''
     Rectangle boundary marked by lower left and upper right corners. The returned
     facet funtion is such that
@@ -126,12 +95,6 @@ def gRectangleSurface(ll, ur, size, view=False):
 
     dx, dy = ur - ll
     assert dx > 0 and dy > 0
-    
-    gmsh.initialize()
-    
-    model = gmsh.model
-    factory = model.occ
-
     # Point by point
     # 4 3  
     # 1 2
@@ -154,32 +117,12 @@ def gRectangleSurface(ll, ur, size, view=False):
     for tag, curve in enumerate(bdry, 1):
         model.addPhysicalGroup(1, [curve], tag)
 
-    factory.synchronize()    
-
-    if isinstance(size, dict):
-        number_options = None
-        # Set size field
-        assert size.keys() <= set((1, 2, 3, 4))
-
-        curves = {tag: (c, ) for tag, c in enumerate(bdry, 1)}
-        set_facet_distance_field(size, curves, model, factory, 1)
-    else:
-        number_options = {'Mesh.CharacteristicLengthFactor': size}
-
-    nodes, topologies = g4x.msh_gmsh_model(model,
-                                           1,
-                                           number_options=number_options,
-                                           view=view)
-
-    mesh, entity_functions = g4x.mesh_from_gmsh(nodes, topologies)
-
-    gmsh.finalize()
-
-    return mesh, entity_functions[1]
+    return size
 
 # ---
 
-def gBox(ll, ur, size, view=False):
+@g4x.occ(3, 2)
+def gBox(ll, ur, size, model, factory, view=False):
     '''
     Box marked by lower left and upper right corners. The returned
     facet funtion is such that
@@ -195,11 +138,6 @@ def gBox(ll, ur, size, view=False):
     dx, dy, dz = ur - ll
     assert dx > 0 and dy > 0 and dz > 0
     
-    gmsh.initialize()
-    
-    model = gmsh.model
-    factory = model.occ
-
     box = factory.addBox(x=ll[0], y=ll[1], z=ll[2], dx=dx, dy=dy, dz=dz)
 
     factory.synchronize()
@@ -221,31 +159,11 @@ def gBox(ll, ur, size, view=False):
         dim, index = surface
         model.addPhysicalGroup(dim, [index], tag)
 
-    factory.synchronize()    
-
-    if isinstance(size, dict):
-        number_options = None
-        # Set size field
-        assert size.keys() <= set((1, 2, 3, 4, 5, 6))
-
-        surfs = {tag: (c[1], ) for tag, c in enumerate(model.getEntities(2), 1)}
-        set_facet_distance_field(size, surfs, model, factory, 2)
-    else:
-        number_options = {'Mesh.CharacteristicLengthFactor': size}
-
-    nodes, topologies = g4x.msh_gmsh_model(model,
-                                           3,
-                                           number_options=number_options,
-                                           view=view)
-
-    mesh, entity_functions = g4x.mesh_from_gmsh(nodes, topologies)
-
-    gmsh.finalize()
-
-    return mesh, entity_functions[2]
+    return size
 
 
-def gBoxSurface(ll, ur, size, view=False):
+@g4x.occ(2, 2)
+def gBoxSurface(ll, ur, size, model, factory, view=False):
     '''
     Box boundary marked by lower left and upper right corners. The returned
     facet funtion is such that
@@ -260,11 +178,6 @@ def gBoxSurface(ll, ur, size, view=False):
 
     dx, dy, dz = ur - ll
     assert dx > 0 and dy > 0 and dz > 0
-    
-    gmsh.initialize()
-    
-    model = gmsh.model
-    factory = model.occ
 
     box = factory.addBox(x=ll[0], y=ll[1], z=ll[2], dx=dx, dy=dy, dz=dz)
 
@@ -285,65 +198,6 @@ def gBoxSurface(ll, ur, size, view=False):
         dim, index = surface
         model.addPhysicalGroup(dim, [index], tag)
 
-    factory.synchronize()    
+    return size
 
-    if isinstance(size, dict):
-        number_options = None
-        # Set size field
-        assert size.keys() <= set((1, 2, 3, 4, 5, 6))
 
-        surfs = {tag: (c[1], ) for tag, c in enumerate(model.getEntities(2), 1)}
-        set_facet_distance_field(size, surfs, model, factory, 2)
-    else:
-        number_options = {'Mesh.CharacteristicLengthFactor': size}
-
-    nodes, topologies = g4x.msh_gmsh_model(model,
-                                           2,
-                                           number_options=number_options,
-                                           view=view)
-
-    mesh, entity_functions = g4x.mesh_from_gmsh(nodes, topologies)
-
-    gmsh.finalize()
-
-    return mesh, entity_functions[2]
-
-# --------------------------------------------------------------------
-
-def set_facet_distance_field(sizes, facets, model, factory, tdim):
-    '''
-    Set mesh size specifying for each physical facet group the gmsh
-    Threshold field. Here facets maps phys tag to list of facet indices
-    '''
-    assert all(v.keys() == set(('SizeMax', 'DistMax', 'SizeMin', 'DistMin'))
-               for v in sizes.values())
-
-    field = model.mesh.field
-
-    facets_list = {1: 'CurvesList', 2: 'SurfacesList'}[tdim]
-        
-    field_tag = 0
-    thresholds = []
-    for phys_tag, facet_sizes in sizes.items():
-        field_tag += 1
-        field.add('Distance', field_tag)
-        field.setNumbers(field_tag, facets_list, facets[phys_tag])
-        field.setNumber(field_tag, 'NumPointsPerCurve', 100)
-
-        field_tag += 1
-        field.add('Threshold', field_tag)
-        field.setNumber(field_tag, 'InField', field_tag-1)
-        # Set spec
-        for prop in facet_sizes:
-            field.setNumber(field_tag, prop, facet_sizes[prop])
-        # Collect for setting final min
-        thresholds.append(field_tag)
-
-    min_field_tag = max(thresholds) + 1
-    field.add('Min', min_field_tag)
-    field.setNumbers(min_field_tag, 'FieldsList', thresholds)    
-    field.setAsBackgroundMesh(min_field_tag)
-
-    factory.synchronize()
-
-    return min_field_tag
