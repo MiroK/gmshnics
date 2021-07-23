@@ -25,8 +25,11 @@ def occ(tdim, fdim):
             # Create model expecting size info, model and factory are
             # looked up in this scope
             kwds.update({'model': model, 'factory': factory})
-            
+
             size = f(*args, **kwds)
+
+            #if tdim == -1 and fdim == -1:
+            #    tdim, fdim = (model.getDimension(), )*2
             # Mesh using size info
             factory.synchronize()
 
@@ -56,7 +59,8 @@ def occ(tdim, fdim):
             # Otherwise we just a number for char size
             else:
                 number_options['Mesh.CharacteristicLengthFactor'] = size
-
+            print(tdim, fdim, '<<<', size)
+            print(kwds.get('view', False))
             nodes, topologies = msh_gmsh_model(
                 model,
                 tdim,
