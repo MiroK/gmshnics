@@ -1,3 +1,5 @@
+import gmshnics.contouring as contour
+import gmshnics.fractals as fractal
 import numpy as np
 
 
@@ -5,8 +7,8 @@ class Shape:
     '''Gmsh shape for nested model'''
     tol = 1E-10
     
-    def __init__(self, break_up_surfaces=False):
-        self.break_up_surfaces = False
+    def __init__(self, as_one_surface=False):
+        self.as_one_surface = as_one_surface
         self._com = None
         self._com_surfaces = None
         self._vertices = None
@@ -35,7 +37,7 @@ class Shape:
     @property
     def com_surfaces(self):
         '''Center of mass for each surface of the shape'''
-        return self._com_surfaces if not self.break_up_surfaces else None
+        return self._com_surfaces if not self.as_one_surface else None
 
     @property
     def vertices(self):
@@ -45,8 +47,8 @@ class Shape:
 
 class Rectangle(Shape):
     '''Axis aligned rectangle is flat in z=0 plane'''
-    def __init__(self, ll, ur, break_up_surfaces=False):
-        super().__init__(break_up_surfaces)
+    def __init__(self, ll, ur, as_one_surface=False):
+        super().__init__(as_one_surface)
         
         ll = np.fromiter(ll, dtype=float)
         ur = np.fromiter(ur, dtype=float)
@@ -82,8 +84,8 @@ class Rectangle(Shape):
 
 class Box(Shape):
     '''Box'''
-    def __init__(self, ll, ur, break_up_surfaces=False):
-        super().__init__(break_up_surfaces)
+    def __init__(self, ll, ur, as_one_surface=False):
+        super().__init__(as_one_surface)
         
         ll = np.fromiter(ll, dtype=float)
         ur = np.fromiter(ur, dtype=float)
@@ -123,8 +125,8 @@ class Box(Shape):
     
 class Circle(Shape):
     '''Circle with center and radius'''
-    def __init__(self, c, r, break_up_surfaces=False):
-        super().__init__(break_up_surfaces)
+    def __init__(self, c, r, as_one_surface=False):
+        super().__init__(as_one_surface)
         
         assert r > 0
         c = np.fromiter(c, dtype=float)
@@ -148,3 +150,86 @@ class Circle(Shape):
         circle = factory.addPlaneSurface([loop])
 
         return (2, circle)
+
+
+class Polygon(Shape):
+    '''Closed one. Specified by it's LINKED vertices (no duplicates)'''
+    def __init__(self, vertices, as_one_surface=False):
+        super().__init__(as_one_surface)
+        nvtx, gdim = vertices.shape
+        assert nvtx > 2 and gdim == 2
+
+        self._vertices = vertices
+        # For further computations it is convenien to have duplicate
+        # the last vertex
+        vertices = np.row_stack([vertices, vertices[0]])
+        # Edges are just subsequent
+        self._com_surfaces = 0.5*(vertices[:-1] + vertices[1:])
+        # See https://stackoverflow.com/a/5271722
+        x = np.c_[vertices[:-1, 0], vertices[1:, 0]]
+        y = np.c_[vertices[:-1, 1], vertices[1:, 1]]
+        x_cross_y = np.cross(x, y)
+        area = 0.5*np.sum(x_cross_y)
+        self._com = 2*(1/6/area)*np.array([np.sum(self._com_surfaces[:, 0]*x_cross_y),
+                                           np.sum(self._com_surfaces[:, 1]*x_cross_y)])
+
+        # For `is_inside` we will use wind number method; here we precompute quadrature
+        # points for the integration
+        dx, dy = np.diff(vertices, axis=0).T
+        # Weights
+        self.wq = np.sqrt(dx**2 + dy**2)  
+        # Unit normal
+        self.nq = np.c_[dy, -dx]/self.wq.reshape((-1, 1))
+        # And midpoint
+        self.xq = vertices[:-1] + 0.5*np.c_[dx, dy]
+        
+    def is_inside(self, p):
+        # Compute the wind number and decide
+        dl, x, n = self.wq, self.xq, self.nq
+        wn = (1./2./np.pi)*np.sum(dl*np.sum((x-c)*n, axis=1)/np.linalg.norm(x-c, 2, axis=1)**2)
+        # NOTE: maybe relax the tolerance here
+        return abs(wn) > self.tol
+
+    def add(self, model, factory):
+        # Volume bounded be the contour
+        pts = self.vertices
+        
+        l = len(pts)
+        pts = [factory.addPoint(*p, z=0) for p in pts]        
+        lines = [factory.addLine(pts[i], pts[(i+1)%l]) for i in range(len(pts))]
+    
+        loop = factory.addCurveLoop(lines)
+        ngon = factory.addPlaneSurface([loop])        
+
+        return (2, ngon)
+
+
+class KochSnowflake(Polygon):
+    tol = 1E-5
+    def __init__(self, nsteps, initial=None, as_one_surface=False):
+        vertices = fractal.koch_snowflake(nsteps, initial=initial)
+        vertices = np.array(vertices)
+        super().__init__(vertices, as_one_surface=as_one_surface)
+
+# -------------------------------------------
+
+if __name__ == '__main__':
+    import gmsh
+
+    gmsh.initialize()
+
+    model = gmsh.model
+    factory = model.occ
+
+    f = KochSnowflake(2, as_one_surface=True)
+    print(f.com)
+    idx = f.add(model, factory)
+
+    factory.synchronize()
+
+    print(factory.getCenterOfMass(*idx))
+    
+    gmsh.fltk.initialize()
+    gmsh.fltk.run()
+
+    gmsh.finalize()

@@ -1,20 +1,21 @@
 from gmshnics.utils import first, second
 from itertools import count
 import numpy as np
-
+import tqdm
 
 def pair_up(entities, x, factory, tol):
     '''Find entity matching x in center of mass'''
     found = False
-    while not found:
-        for entity in entities:
-            found = np.linalg.norm(factory.getCenterOfMass(*entity)[:len(x)] - x) < tol
-            if found: break
-    assert found
+    min_d = np.inf
+    for entity in entities:
+        dist = np.linalg.norm(factory.getCenterOfMass(*entity)[:len(x)] - x)
+        found = dist < tol
+        min_d = min(min_d, dist)
+        if found:
+            return entity
+    assert found, f'Closest entity was {min_d} away'
+
     
-    return entity
-
-
 def tag_matched_entities(coms, entities, model, factory, tagit, tol):
     '''Return tags for matches entities and leftovers'''
     edim, = set(map(first, entities))
@@ -30,6 +31,8 @@ def tag_matched_entities(coms, entities, model, factory, tagit, tol):
     tags = []
     
     coms = list(reversed(coms))
+    print(f'Matching {len(coms)} against {len(entities)}')
+    pbar = tqdm.tqdm(len(coms))
     while coms:
         com = coms.pop()
         # Match remaining entities against center of mass
@@ -41,7 +44,9 @@ def tag_matched_entities(coms, entities, model, factory, tagit, tol):
         factory.synchronize()
                 
         tags.append((entity, tag))
-        
+        pbar.update(1)
+    pbar.close()
+    
     return tags, entities
 
 

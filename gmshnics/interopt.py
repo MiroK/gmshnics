@@ -1,5 +1,6 @@
 from gmshnics.make_mesh_cpp import build_mesh
-from gmshnics.utils import second, set_facet_distance_field
+from gmshnics.utils import second
+from gmshnics.meshsize import set_facet_distance_field
 
 from collections import defaultdict
 from functools import reduce, wraps
@@ -27,10 +28,20 @@ def occ(tdim, fdim):
             # Create model expecting size info, model and factory are
             # looked up in this scope
             kwds.update({'model': model, 'factory': factory})
-            size = f(*args, **kwds)
+            retval = f(*args, **kwds)
+            # Typically models return just size but in embedded models we get lookup
+            # for facets of shapes involved. This is useful an we want to pass it outside
+            return_lookup = isinstance(retval, tuple)
+            if return_lookup:
+                size, lookup = retval
+            else:
+                size = retval
             
             if _tdim == -1 and _fdim == -1:
-                _tdim, _fdim = (model.getDimension(), )*2
+                _tdim = model.getDimension()
+                # Most we have in mind situtations where the size field is set on
+                # distances from facets
+                _fdim = _tdim - 1
             # Mesh using size info
             factory.synchronize()
 
@@ -50,13 +61,15 @@ def occ(tdim, fdim):
                 # The size dict refers to entities by their physical group
                 # so let's get those allowed
                 facets = defaultdict(list)
+
                 [facets[ptag].append(second(entity))
-                 for entity in model.getEntities(fdim)
-                 for ptag in model.getPhysicalGroupsForEntity(fdim, second(entity))]
+                 for entity in model.getEntities(_fdim)
+                 for ptag in model.getPhysicalGroupsForEntity(_fdim, second(entity))]
                 
                 assert size.keys() <= facets.keys()
                 print(size, facets)
-                set_facet_distance_field(size, facets, model, factory, _fdim)
+                fid = set_facet_distance_field(size, facets, model, factory, _fdim)
+                print(f'MeshField used as background is {fid}')
             # Otherwise we just a number for char size
             else:
                 number_options['Mesh.CharacteristicLengthFactor'] = size
@@ -73,6 +86,8 @@ def occ(tdim, fdim):
 
             gmsh.finalize()
 
+            if return_lookup:
+                return mesh, entity_functions, lookup
             return mesh, entity_functions
         return wrapper
     return mesh_it

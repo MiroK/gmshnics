@@ -44,6 +44,8 @@ def _shape_bounding_shapes(outer, inner, size, model, factory, strict=True, view
     volumes = model.getEntities(tdim)
     # By convention outer is 1 so for volumes we count from 2
     vtag = itertools.count(2)
+
+    print(f'Tagging {len(inner_shapes)} volumes')
     while inner_shapes:
         inner_shape = inner_shapes.pop()
         # We have only one match [(entity, physical tag)]
@@ -51,12 +53,14 @@ def _shape_bounding_shapes(outer, inner, size, model, factory, strict=True, view
         # So to the physical tag we temporaty assign the shape which we  will
         # later use to tag the boundary of this volume
         surface_tags[second(vol)] = [inner_shape]
+
     # By convention the outer volume receives tag 1; it is the left over volue
     vol_,  = volumes
     model.addPhysicalGroup(tdim, [second(vol_)], 1)
     factory.synchronize()
     surface_tags[second(vol_)] = [outer]
-    
+
+    print(f'Tagging boundaries of {len(surface_tags)} volumes')
     stag = itertools.count(1)
     # Now in the order that inner volumes appeared we go for surfaces
     for vol in surface_tags:
@@ -69,29 +73,31 @@ def _shape_bounding_shapes(outer, inner, size, model, factory, strict=True, view
         matched_tags, shape_bdry = tag_matched_entities(surf_coms, shape_bdry, model, factory, stag, tol)
         # Finally populate the look up in a right way
         surface_tags[vol].extend(map(second, matched_tags))
+    
+    return size, surface_tags
 
-    return size#, surface_tags
 
-
-def shape_bounding_shapes(outer, inner, size, view=False):
+def gShapeBoundingShapes(outer, inner, size, strict=True, view=False):
     '''Rectangles inside rectangle each speced by tuple that is ll and ur'''
     return _shape_bounding_shapes(outer=outer,
                                   inner=inner,
                                   size=size,
+                                  strict=strict,
                                   view=view)
 
 
-def rectangle_bounding_rectangles(outer, inner, size, view=False):
+def gRectangleBoundingRectangles(outer, inner, size, strict=True, view=False):
     '''Rectangles inside rectangle each speced by tuple that is ll and ur'''
-    return shape_bounding_shapes(outer=Rectangle(*outer),
-                                 inner=[Rectangle(*i) for i in inner],
-                                 size=size,
-                                 view=view)
+    return gShapeBoundingShapes(outer=Rectangle(*outer),
+                                inner=[Rectangle(*i) for i in inner],
+                                size=size,
+                                strict=strict,
+                                view=view)
             
 # --------------------------------------------------------------------
 
 if __name__ == '__main__':
-    from gmshnics.shapes import Rectangle, Circle
+    from gmshnics.shapes import Rectangle, Circle, KochSnowflake
 
     outer = ((0, 0), (1, 1))
     inner = (((0.25, 0.25), (0.5, 0.5)),
@@ -100,6 +106,18 @@ if __name__ == '__main__':
     inner = (((0.25, 0.25), (0.75, 0.75)), )
     # rectangle_bounding_rectangles(outer, inner, size=0.1, view=True)
 
-    shape_bounding_shapes(outer=Rectangle((0, 0), (1, 1)),
-                          inner=[Circle((0.5, 0.5), 0.2)],
-                          size=0.2, view=True)
+    # size = {1: {'SizeMin': 0.02, 'DistMin': 0.05, 'DistMax': 0.2, 'SizeMax': 1.}}
+    
+    # print(gShapeBoundingShapes(outer=Rectangle((0, 0), (1, 1)),
+    #                            inner=[Circle((0.5, 0.5), 0.2)],
+    #                            size=size, view=True))
+
+    l = np.sqrt(3)/6
+    h = np.sin(np.pi/3)
+    s = 0.2
+    ll, ur = (0-s, -l-s), (1+s, h+s)
+    
+    print(gShapeBoundingShapes(outer=Rectangle(ll, ur),
+                                inner=[KochSnowflake(5, as_one_surface=False)],
+                                size=0.2, view=True))
+    
