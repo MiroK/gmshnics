@@ -79,6 +79,47 @@ class Rectangle(Shape):
         dx, dy = ur - ll
         return (2, factory.addRectangle(x=ll[0], y=ll[1], z=0, dx=dx, dy=dy))
 
+
+class Box(Shape):
+    '''Box'''
+    def __init__(self, ll, ur, break_up_surfaces=False):
+        super().__init__(break_up_surfaces)
+        
+        ll = np.fromiter(ll, dtype=float)
+        ur = np.fromiter(ur, dtype=float)
+        
+        dx, dy, dz = ur - ll
+        assert dx > 0 and dy > 0 and dz > 0
+        # For collisions
+        self.ll, self.ur = ll, ur
+
+        vertices = np.array([[ll[0], ll[1], ll[2]],
+                             [ur[0], ll[1], ll[2]],
+                             [ur[0], ur[1], ll[2]],
+                             [ll[0], ur[1], ll[2]],
+                             [ll[0], ll[1], ur[2]],
+                             [ur[0], ll[1], ur[2]],
+                             [ur[0], ur[1], ur[2]],
+                             [ll[0], ur[1], ur[2]]])
+
+        self._com = np.mean(vertices, axis=0)
+
+        facets = [[0, 3, 4, 7], [1, 2, 5, 6],
+                  [0, 1, 4, 5], [2, 3, 7, 6],
+                  [0, 1, 2, 3], [4, 5, 6, 7]]
+        self._com_surfaces = np.array([np.mean(vertices[facet], axis=0) for facet in facets])
+
+        self._vertices = vertices
+
+    def is_inside(self, p):
+        tol = Shape.tol
+        return all((self.ll[i] + tol < p[i] < self.ur[i] - tol) for i in range(3))
+
+    def add(self, model, factory):
+        ll, ur = self.ll, self.ur
+        dx, dy, dz = ur - ll
+        return (3, factory.addBox(x=ll[0], y=ll[1], z=ll[2], dx=dx, dy=dy, dz=dz))
+    
     
 class Circle(Shape):
     '''Circle with center and radius'''

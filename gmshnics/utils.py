@@ -72,7 +72,8 @@ def set_facet_distance_field(sizes, facets, model, factory, tdim):
                for v in sizes.values())
 
     field = model.mesh.field
-
+    factory.synchronize()
+    
     facets_list = {1: 'CurvesList', 2: 'SurfacesList'}[tdim]
         
     field_tag = 0
