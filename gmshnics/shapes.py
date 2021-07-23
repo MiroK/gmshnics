@@ -154,7 +154,8 @@ class Circle(Shape):
 
 class Polygon(Shape):
     '''Closed one. Specified by it's LINKED vertices (no duplicates)'''
-    def __init__(self, vertices, as_one_surface=False):
+    tol = 1E-1
+    def __init__(self, vertices, nrefs=4, as_one_surface=False):
         super().__init__(as_one_surface)
         nvtx, gdim = vertices.shape
         assert nvtx > 2 and gdim == 2
@@ -173,21 +174,30 @@ class Polygon(Shape):
         self._com = 2*(1/6/area)*np.array([np.sum(self._com_surfaces[:, 0]*x_cross_y),
                                            np.sum(self._com_surfaces[:, 1]*x_cross_y)])
 
-        # For `is_inside` we will use wind number method; here we precompute quadrature
-        # points for the integration
+        # Coarse outside filter is to kick out those outside of bounding box
+        self.ll = np.min(vertices, axis=0)
+        self.ur = np.max(vertices, axis=0)
+        # For mode finer `is_inside` we will use wind number method; here we
+        # precompute quadrature points for the integration
+        vertices = contour.refine_contour(vertices, nrefs)
         dx, dy = np.diff(vertices, axis=0).T
         # Weights
-        self.wq = np.sqrt(dx**2 + dy**2)  
-        # Unit normal
-        self.nq = np.c_[dy, -dx]/self.wq.reshape((-1, 1))
+        self.wq = np.c_[dx, dy]
         # And midpoint
         self.xq = vertices[:-1] + 0.5*np.c_[dx, dy]
-        
+
     def is_inside(self, p):
+        if p[0] > self.ur[0]+Shape.tol or p[0] < self.ll[0]-Shape.tol:
+            return False
+
+        if p[1] > self.ur[1]+Shape.tol or p[1] < self.ll[1]-Shape.tol:
+            return False
+        print('   ', p)
         # Compute the wind number and decide
-        dl, x, n = self.wq, self.xq, self.nq
-        wn = (1./2./np.pi)*np.sum(dl*np.sum((x-c)*n, axis=1)/np.linalg.norm(x-c, 2, axis=1)**2)
+        dl, x = self.wq, self.xq
+        wn = (1./2./np.pi)*np.sum(np.cross((x-p), dl)/np.linalg.norm(x-p, 2, axis=1)**2)
         # NOTE: maybe relax the tolerance here
+        print(abs(wn), self.tol, abs(wn) > self.tol)
         return abs(wn) > self.tol
 
     def add(self, model, factory):

@@ -12,6 +12,10 @@ Test things by running `py.test .` We have the following dependencies
 
 Python version tested with the above is `3.9.6`
 
+## FIXME
+- [ ] `is_inside` for Polygon is not correct
+- [ ] add tests for embedding
+
 ## TODO
 - [ ] Mesh and load in parallel
 - [ ] Consider bundling MeshFunctions as MeshData into mesh?

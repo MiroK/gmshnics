@@ -3,6 +3,7 @@ import numpy as np
 
 def refine_contour(contour, n):
     '''Uniform refine n times'''
+    assert np.linalg.norm(contour[0]-contour[-1]) < 1E-10
     assert n >= 0
     # Base
     if n == 0:

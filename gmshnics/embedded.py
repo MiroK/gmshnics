@@ -93,31 +93,3 @@ def gRectangleBoundingRectangles(outer, inner, size, strict=True, view=False):
                                 size=size,
                                 strict=strict,
                                 view=view)
-            
-# --------------------------------------------------------------------
-
-if __name__ == '__main__':
-    from gmshnics.shapes import Rectangle, Circle, KochSnowflake
-
-    outer = ((0, 0), (1, 1))
-    inner = (((0.25, 0.25), (0.5, 0.5)),
-             ((0.55, 0.55), (0.75, 0.75)))
-
-    inner = (((0.25, 0.25), (0.75, 0.75)), )
-    # rectangle_bounding_rectangles(outer, inner, size=0.1, view=True)
-
-    # size = {1: {'SizeMin': 0.02, 'DistMin': 0.05, 'DistMax': 0.2, 'SizeMax': 1.}}
-    
-    # print(gShapeBoundingShapes(outer=Rectangle((0, 0), (1, 1)),
-    #                            inner=[Circle((0.5, 0.5), 0.2)],
-    #                            size=size, view=True))
-
-    l = np.sqrt(3)/6
-    h = np.sin(np.pi/3)
-    s = 0.2
-    ll, ur = (0-s, -l-s), (1+s, h+s)
-    
-    print(gShapeBoundingShapes(outer=Rectangle(ll, ur),
-                                inner=[KochSnowflake(5, as_one_surface=False)],
-                                size=0.2, view=True))
-    

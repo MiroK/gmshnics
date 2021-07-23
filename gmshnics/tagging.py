@@ -31,7 +31,7 @@ def tag_matched_entities(coms, entities, model, factory, tagit, tol):
     tags = []
     
     coms = list(reversed(coms))
-    print(f'Matching {len(coms)} against {len(entities)}')
+    print(f'Matching {len(coms)} points against {len(entities)} entities')
     pbar = tqdm.tqdm(len(coms))
     while coms:
         com = coms.pop()
