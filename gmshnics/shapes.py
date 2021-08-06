@@ -179,12 +179,7 @@ class Polygon(Shape):
         self.ur = np.max(vertices, axis=0)
         # For mode finer `is_inside` we will use wind number method; here we
         # precompute quadrature points for the integration
-        vertices = contour.refine_contour(vertices, nrefs)
-        dx, dy = np.diff(vertices, axis=0).T
-        # Weights
-        self.wq = np.c_[dx, dy]
-        # And midpoint
-        self.xq = vertices[:-1] + 0.5*np.c_[dx, dy]
+        self.windgen = contour.wind_number_gen(vertices, nrefs) 
 
     def is_inside(self, p):
         if p[0] > self.ur[0]+Shape.tol or p[0] < self.ll[0]-Shape.tol:
@@ -194,9 +189,9 @@ class Polygon(Shape):
             return False
         print('   ', p)
         # Compute the wind number and decide
-        dl, x = self.wq, self.xq
-        wn = (1./2./np.pi)*np.sum(np.cross((x-p), dl)/np.linalg.norm(x-p, 2, axis=1)**2)
-        # NOTE: maybe relax the tolerance here
+        next(self.windgen)
+        wn = self.windgen.send(p)
+        
         print(abs(wn), self.tol, abs(wn) > self.tol)
         return abs(wn) > self.tol
 

@@ -22,6 +22,7 @@ def test_rectangle():
 
     
 def test_Lshape():
+    from gmshnics.contouring import wind_number_it
     vertices = np.array([[0, 0],
                          [1, 0],
                          [1, 1],
@@ -29,7 +30,7 @@ def test_Lshape():
                          [2, 2],
                          [0, 1]])
 
-    p = Polygon(vertices, nrefs=0)
+    p = Polygon(vertices, nrefs=3)
     # Trust gmsh for ground truth
     gmsh.initialize()
     vol = p.add(gmsh.model, gmsh.model.occ)
@@ -48,7 +49,11 @@ def test_Lshape():
         inside_rect(points, (0, 0), (1, 1)),  inside_rect(points, (0, 1), (2, 2))
     )
 
+    wit = wind_number_it(np.row_stack([vertices, vertices[0]]),
+                         points,
+                         nrefs=3)
+    
     inside = np.array([p.is_inside(x) for x in points])
-    assert sum(inside == inside0) == len(points), (inside, inside0)
+    assert sum(inside == inside0) == len(points), (inside, inside0, list(zip(points, wit)))
 
 test_Lshape()

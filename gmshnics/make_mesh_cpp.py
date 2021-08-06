@@ -81,7 +81,7 @@ def build_mesh(coordinates, cells, cell, mesh=None):
     # For 2d we do an complex number trick in addition ...
     if gdim == 2:
         x, y = X.T
-        has_duplicates = len(np.unique(x+1j)) == len(x)
+        has_duplicates = len(np.unique(x+1j*y)) != len(x)
     else:
         has_duplicates = False
     # ... edge lengths check
@@ -89,7 +89,7 @@ def build_mesh(coordinates, cells, cell, mesh=None):
     v0, v1 = np.column_stack([e2v(e) for e in range(mesh.num_entities(1))])
     edge_lengths = np.linalg.norm(X[v0] - X[v1], 2, axis=1)
 
-    assert not has_duplicates and np.min(edge_lengths) > 1E-13
+    assert not has_duplicates and np.min(edge_lengths) > 1E-13, (has_duplicates, np.min(edge_lengths))
 
     # There should be non degenerate cells (additional check)
     assert min(cell.volume() for cell in df.cells(mesh)) > 1E-13

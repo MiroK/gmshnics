@@ -30,6 +30,27 @@ def is_inside_contour(contour, points, tol=1E-2, nrefs=0):
     return np.fromiter(is_inside_contour_it(contour, points, tol=tol, nrefs=nrefs),
                        dtype=bool)
 
+def wind_number_gen(contour, nrefs=0):
+    '''If contour is defined by linked vertices'''
+    # Improve accuracy of integral by refinement
+    if nrefs > 0:
+        contour = refine_contour(contour, nrefs)
+    # Look at contour integral of dot(n, x-c/dot(x-c, x-c))
+    # We assume closed contour so
+    assert np.linalg.norm(contour[0] - contour[-1]) < 1E-13
+    assert contour.ndim == 2
+    # Precondpute edge length
+    dx, dy = np.diff(contour, axis=0).T
+    # And midpoint
+    x = contour[:-1] + 0.5*np.c_[dx, dy]
+    dl = np.c_[dx, dy]
+    # NOTE: here we do the integral numerically so we are limited by
+    # the approximation; it's also mid point rule type quadrature since
+    # that is where the normal makes sense (cf. vertices)
+    while True:
+        c = yield
+        yield (1./2./np.pi)*np.sum(np.cross(dl, (x-c))/np.linalg.norm(x-c, 2, axis=1)**2)
+
 
 def wind_number_it(contour, points, nrefs=0):
     '''If contour is defined by linked vertices'''
