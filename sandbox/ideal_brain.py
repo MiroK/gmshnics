@@ -80,6 +80,36 @@ def mesh_contour(contour, scale=1, fit_spline=True, view=False):
     return mesh
 
 
+def force_per_area(V):
+    '''
+    What is |grad(u*).n|^2 if -Delta u* = 0 and u* = 1 on the boundary
+    '''
+    u, v = df.TrialFunction(V), df.TestFunction(V)
+
+    a = df.inner(df.grad(u), df.grad(v))*df.dx
+    L = df.inner(df.Constant(1), v)*df.dx
+    bcs = df.DirichletBC(V, df.Constant(0), 'on_boundary')
+
+    A, b = df.assemble_system(a, L, bcs)
+
+    solver = df.KrylovSolver('cg', 'hypre_amg')
+    solver.set_operators(A, A)
+    solver.parameters['absolute_tolerance'] = 1E-12
+    solver.parameters['relative_tolerance'] = 1E-20
+    solver.parameters['monitor_convergence'] = True
+
+    uh = df.Function(V)
+    solver.solve(uh.vector(), b)
+
+    mesh = V.mesh()
+    n = df.FacetNormal(mesh)
+    # Now what we are after
+    area = df.assemble(df.Constant(1)*df.ds(domain=mesh))
+    force = df.sqrt(abs(df.assemble(df.inner(df.dot(df.grad(uh), n), df.dot(df.grad(uh), n))*df.ds)))
+
+    return force/area, df.as_backend_type(uh.vector()).vec()
+
+
 def poincare_constant(V):
     '''
     Get Poincare constant as a largest eigenvalue of (u, v)*dx = l*(grad(u), grad(v))*dx
@@ -221,7 +251,7 @@ def H10_norm(f):
     return df.sqrt(abs(df.assemble(df.inner(df.grad(f), df.grad(f))*df.dx)))
 
 
-def constant_estimate(contour, max_nrefs, get_constant, tol=5E-3):
+def constant_estimate(contour, max_nrefs, get_constant, tol=1E-2):
     '''Refine the contour mesh computing constants'''
     if not isinstance(get_constant, dict):
         which = {'foo': get_constant}
@@ -280,9 +310,11 @@ if __name__ == '__main__':
     root = './results'
     not os.path.exists(root) and os.mkdir(root)
 
-    get_constant = {'poincare': poincare_constant,
-                    'trace': trace_constant}
     max_nrefs = 10
+
+    get_constant = {'poincare': poincare_constant,
+                    'trace': trace_constant,
+                    'force': force_per_area} 
 
     for k in (0, 2, 4, 8, 16, 32):
         if k == 0:
