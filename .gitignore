@@ -8,3 +8,11 @@ __pycache__
 
 *.pvd
 *.vtu
+
+*.geo
+*.geo_unrolled
+*.stl
+*.msh
+
+/sandbox/results
+
