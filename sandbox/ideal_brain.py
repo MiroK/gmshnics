@@ -175,6 +175,16 @@ def trace_constant(V):
 
 def largest_eigenvalue(A, B, Z=None):
     '''Solve Ax = l B*x for the largest eigenvalue'''
+    return extreme_eigenvalue(A, B, SLEPc.EPS.Which.LARGEST_MAGNITUDE, Z=Z)
+
+
+def smallest_eigenvalue(A, B, Z=None):
+    '''Solve Ax = l B*x for the smallest eigenvalue'''
+    return extreme_eigenvalue(A, B, SLEPc.EPS.Which.SMALLEST_MAGNITUDE, Z=Z)
+
+
+def extreme_eigenvalue(A, B, which, Z=None):
+    ''''Solve Ax = l B*x for the extreme eigenvalue'''
     opts = PETSc.Options()
     opts.setValue('eps_rtol', 1E-8)
     opts.setValue('eps_max_it', 20000)
@@ -191,7 +201,7 @@ def largest_eigenvalue(A, B, Z=None):
     E.setOperators(A, B)
 
     E.setProblemType(SLEPc.EPS.ProblemType.GHEP)
-    E.setWhichEigenpairs(SLEPc.EPS.Which.LARGEST_MAGNITUDE)
+    E.setWhichEigenpairs(which)
 
     if A.size[0] > 2E6:
         ST = E.getST()
@@ -201,7 +211,7 @@ def largest_eigenvalue(A, B, Z=None):
         PC = KSP.getPC()
 
         PC.setType('lu')
-        PC.setFactorSolverPackage('mumps')
+        # PC.setFactorSolverPackage('mumps')
 
         KSP.setFromOptions()
     E.setFromOptions()
@@ -307,26 +317,43 @@ if __name__ == '__main__':
     import dolfin as df
     import os
 
-    root = './results'
-    not os.path.exists(root) and os.mkdir(root)
 
-    max_nrefs = 10
+    mesh = df.Mesh('2d_brain_mesh.xml')
+    V = df.FunctionSpace(mesh, 'CG', 1)
+    u, v = df.TrialFunction(V), df.TestFunction(V)
 
-    get_constant = {'poincare': poincare_constant,
-                    'trace': trace_constant,
-                    'force': force_per_area} 
+    a = df.inner(df.grad(u), df.grad(v))*df.dx + df.inner(u, v)*df.dx
+    m = df.inner(u, v)*df.dx
 
-    for k in (0, 2, 4, 8, 16, 32):
-        if k == 0:
-            f = lambda th: np.zeros_like(th)
-        else:
-            f = lambda th, k=k: 0.1*np.cos(k*th)
+    z = df.interpolate(df.Constant(1), V).vector()
+
+    A, B = map(df.assemble, (a, m))
+    A, B = (df.as_backend_type(x).mat() for x in (A, B))
+    Z = [df.as_backend_type(z).vec() for z in (z, )]
+
+    print(V.dim())
+    val, vec = smallest_eigenvalue(A, B, Z=Z)
+
+    # root = './results'
+    # not os.path.exists(root) and os.mkdir(root)
+
+    # max_nrefs = 10
+
+    # get_constant = {'poincare': poincare_constant,
+    #                 'trace': trace_constant,
+    #                 'force': force_per_area} 
+
+    # for k in (0, 2, 4, 8, 16, 32):
+    #     if k == 0:
+    #         f = lambda th: np.zeros_like(th)
+    #     else:
+    #         f = lambda th, k=k: 0.1*np.cos(k*th)
             
-        contour, ellipse = perturb_ellipse(f, npts=4000, x0=0, y0=0, a=1, b=1.5)
+    #     contour, ellipse = perturb_ellipse(f, npts=4000, x0=0, y0=0, a=1, b=1.5)
 
-        results, _ = constant_estimate(contour, max_nrefs=max_nrefs, get_constant=get_constant)
+    #     results, _ = constant_estimate(contour, max_nrefs=max_nrefs, get_constant=get_constant)
 
-        for name in results:
-            np.savetxt(os.path.join(root, f'{name}_{k}.txt'), np.array(results[name]),
-                       header='hmin Vdim lmbda vol surf')
+    #     for name in results:
+    #         np.savetxt(os.path.join(root, f'{name}_{k}.txt'), np.array(results[name]),
+    #                    header='hmin Vdim lmbda vol surf')
 
