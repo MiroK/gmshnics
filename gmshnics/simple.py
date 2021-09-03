@@ -181,6 +181,31 @@ def gKochSnowFlake(nsteps, initial, size, model, factory, view=False, as_one_sur
 
     return size
 
+
+@occ(2, 1)
+def gDisk(center, inradius, outradius, size, model, factory, view=False):
+    '''
+    Centered at center with (inradius, outradius). Returns mesh and FacetFunction 
+    with inner boundary set to 1, outer to 2.
+    '''
+    assert 0 < inradius < outradius
+
+    icircle = Circle(center, inradius)
+    tdim, ivol = icircle.add(model, factory)
+
+    ocircle = Circle(center, outradius)
+    tdim, ovol = ocircle.add(model, factory)
+    
+    factory.synchronize()
+
+    disk, _ = factory.cut([(tdim, ovol)], [(tdim, ivol)])
+
+    model.addPhysicalGroup(2, [disk[0][1]], 1)
+    model.addPhysicalGroup(1, [1], 1)
+    model.addPhysicalGroup(1, [2], 2)
+
+    return size
+
 # ------
 
 if __name__ == "__main__":
