@@ -8,7 +8,7 @@ def pair_up(entities, x, factory, tol):
     found = False
     min_d = np.inf
     for entity in entities:
-        dist = np.linalg.norm(factory.getCenterOfMass(*entity)[:len(x)] - x)
+        dist = np.linalg.norm(factory.getCenterOfMass(entity[0], abs(entity[1]))[:len(x)] - x)
         found = dist < tol
         min_d = min(min_d, dist)
         if found:
@@ -55,6 +55,7 @@ def tag_volume_bdry(shape, volumes, model, factory):
     Compare shape sufaces in terms of coms with boundaries of the volumes
     dimTags making up the shape in the model
     '''
+    factory.synchronize()
     shape_bdry = list(model.getBoundary(volumes))
     # Coordinates
     surf_coms = shape.com_surfaces

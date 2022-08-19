@@ -319,41 +319,82 @@ if __name__ == '__main__':
 
 
     mesh = df.Mesh('2d_brain_mesh.xml')
-    V = df.FunctionSpace(mesh, 'CG', 1)
-    u, v = df.TrialFunction(V), df.TestFunction(V)
 
-    a = df.inner(df.grad(u), df.grad(v))*df.dx + df.inner(u, v)*df.dx
-    m = df.inner(u, v)*df.dx
+    plt.figure()
 
-    z = df.interpolate(df.Constant(1), V).vector()
+    for k in 8, 16, 32:
+        f = lambda th, k=k: 0.1*np.cos(k*th)    
+        contour, ellipse = perturb_ellipse(f, npts=4000, x0=0, y0=0, a=1, b=1.5)
 
-    A, B = map(df.assemble, (a, m))
-    A, B = (df.as_backend_type(x).mat() for x in (A, B))
-    Z = [df.as_backend_type(z).vec() for z in (z, )]
+        mesh = mesh_contour(contour, scale=1./2**3, fit_spline=True, view=False)
+    
+        V = df.FunctionSpace(mesh, 'CG', 1)
+        u, v = df.TrialFunction(V), df.TestFunction(V)
 
-    print(V.dim())
-    val, vec = smallest_eigenvalue(A, B, Z=Z)
+        a = df.inner(df.grad(u), df.grad(v))*df.dx# + df.inner(u, v)*df.dx
+        m = df.inner(u, v)*df.dx
 
-    # root = './results'
-    # not os.path.exists(root) and os.mkdir(root)
+        z = df.interpolate(df.Constant(1), V).vector()
+        
+        bc = df.DirichletBC(V, df.Constant(0), 'on_boundary')
+        bc = None
+        A, _ = df.assemble_system(a, df.inner(df.Constant(0), v)*df.dx, bc)
+        B, _ = df.assemble_system(m, df.inner(df.Constant(0), v)*df.dx, bc)
+        
 
-    # max_nrefs = 10
+        from scipy.linalg import eigh
 
-    # get_constant = {'poincare': poincare_constant,
-    #                 'trace': trace_constant,
-    #                 'force': force_per_area} 
+        eigw, eigv = eigh(A.array(), B.array())
+        eigv = eigv.T
 
-    # for k in (0, 2, 4, 8, 16, 32):
-    #     if k == 0:
-    #         f = lambda th: np.zeros_like(th)
-    #     else:
-    #         f = lambda th, k=k: 0.1*np.cos(k*th)
+        if bc is not None:
+            v = df.Function(V)
+            eigw = [val for val, vec in zip(eigw, eigv)
+                    if (v.vector().set_local(vec),
+                        abs(df.assemble(v*df.ds())) < 1E-8)[1]]
+    
+        import matplotlib.pyplot as plt
+
+        idx = np.arange(1, len(eigw)+1)
+
+        plt.loglog(idx, eigw, marker='x', label=str(k))
+
+        A, B = (df.as_backend_type(x).mat() for x in (A, B))
+        Z = [df.as_backend_type(z).vec() for z in (z, )]
+
+        
+    plt.legend()
+    plt.show()
+
+    # print(V.dim())
+    # val, vec = smallest_eigenvalue(A, B)#, Z=Z)
+    # print(val)
+
+    # f = df.Function(V)
+    # f.vector()[:] = df.PETScVector(vec)
+
+    # df.File(f'foo_{k}.pvd') << f
+    
+    # # root = './results'
+    # # not os.path.exists(root) and os.mkdir(root)
+
+    # # max_nrefs = 10
+
+    # # get_constant = {'poincare': poincare_constant,
+    # #                 'trace': trace_constant,
+    # #                 'force': force_per_area} 
+
+    # # for k in (0, 2, 4, 8, 16, 32):
+    # #     if k == 0:
+    # #         f = lambda th: np.zeros_like(th)
+    # #     else:
+    # #         f = lambda th, k=k: 0.1*np.cos(k*th)
             
-    #     contour, ellipse = perturb_ellipse(f, npts=4000, x0=0, y0=0, a=1, b=1.5)
+    # #     contour, ellipse = perturb_ellipse(f, npts=4000, x0=0, y0=0, a=1, b=1.5)
 
-    #     results, _ = constant_estimate(contour, max_nrefs=max_nrefs, get_constant=get_constant)
+    # #     results, _ = constant_estimate(contour, max_nrefs=max_nrefs, get_constant=get_constant)
 
-    #     for name in results:
-    #         np.savetxt(os.path.join(root, f'{name}_{k}.txt'), np.array(results[name]),
-    #                    header='hmin Vdim lmbda vol surf')
+    # #     for name in results:
+    # #         np.savetxt(os.path.join(root, f'{name}_{k}.txt'), np.array(results[name]),
+    # #                    header='hmin Vdim lmbda vol surf')
 
