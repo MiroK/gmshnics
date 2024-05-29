@@ -9,7 +9,10 @@ import dolfin as df
 import numpy as np
 import operator
 import gmsh
-import ufl
+try: 
+    import ufl
+except ImportError:
+    import ufl_legacy as ufl
 
 
 def occ(tdim, fdim):
