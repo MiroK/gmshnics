@@ -112,6 +112,13 @@ def msh_gmsh_model(model, dim, number_options=None, string_options=None, view=Fa
             
     model.mesh.generate(dim)
 
+    nodes, data = get_nodes_data(model)
+
+    return nodes, data
+
+
+def get_nodes_data(model):
+    '''Extract'''
     indices, nodes, _ = model.mesh.getNodes()
     indices -= 1
     nodes = nodes.reshape((-1, 3))

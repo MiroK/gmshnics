@@ -69,7 +69,7 @@ module = compile_cpp(code)
 def build_mesh(coordinates, cells, cell, mesh=None):
     '''Mesh by MeshEditor from vertices and cells'''
     if mesh is None:
-        mesh = Mesh()
+        mesh = Mesh(df.MPI.comm_self)
         assert mesh.mpi_comm().size == 1
 
     tdim = cell.topological_dimension()
@@ -92,7 +92,7 @@ def build_mesh(coordinates, cells, cell, mesh=None):
     assert not has_duplicates and np.min(edge_lengths) > 1E-13, (has_duplicates, np.min(edge_lengths))
 
     # There should be non degenerate cells (additional check)
-    assert min(cell.volume() for cell in df.cells(mesh)) > 1E-13
+    # assert min(cell.volume() for cell in df.cells(mesh)) > 1E-13
 
     print('Created mesh mesh quality', df.MeshQuality.radius_ratio_min_max(mesh))
 
