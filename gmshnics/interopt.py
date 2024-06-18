@@ -180,9 +180,9 @@ def mesh_from_gmsh(nodes, element_data, TOL=1E-13):
     vtx_idx = np.unique(cells_as_nodes)
     mesh_vertices = nodes[vtx_idx]  # Now we have our numbering
     # Want to make from old to new to redefine cells
-    node_map = {old: new for old, new in enumerate(vtx_idx)}
-
-    cells_as_nodes = np.fromiter((node_map[c] for c in cells_as_nodes.ravel()),
+    node_map = {old: new for (new, old) in enumerate(vtx_idx)}
+    
+    cells_as_nodes = np.fromiter((node_map[v] for v in cells_as_nodes.ravel()),
                                  dtype=cells_as_nodes.dtype).reshape(cells_as_nodes.shape)
 
     print(f'Mesh has {len(cells_as_nodes)} cells of type {cell_elm}.')
@@ -229,6 +229,7 @@ def mesh_from_gmsh(nodes, element_data, TOL=1E-13):
             v2e, e2v = lambda x: (x, ), lambda x: (x, )
 
         f = df.MeshFunction('size_t', mesh, tdim, 0)
+
         for entity, tag in zip(element_data[elm]['topology'], element_data[elm]['cell_data']):
             # Encode in fenics
             entity = [node_map[v] for v in entity]
