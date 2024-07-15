@@ -202,7 +202,7 @@ def mesh_from_gmsh(nodes, element_data, TOL=1E-13):
     
     entity_functions = {}
     # Is there cell_function to build?
-    if np.min(element_data[cell_elm]['cell_data']) > 0:
+    if np.max(element_data[cell_elm]['cell_data']) > 0:
         f = df.MeshFunction('size_t', mesh, cell_tdim)
         f.array()[:] = element_data[cell_elm]['cell_data']
         entity_functions[cell_tdim] = f
@@ -214,7 +214,7 @@ def mesh_from_gmsh(nodes, element_data, TOL=1E-13):
         if elm == cell_elm:
             continue
         # All zeros is not interesting either
-        if np.min(element_data[elm]['cell_data']) == 0:
+        if np.max(element_data[elm]['cell_data']) == 0:
             continue
 
         tdim = elm_tdim[elm]
