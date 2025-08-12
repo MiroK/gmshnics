@@ -199,6 +199,9 @@ def mesh_from_gmsh(nodes, element_data, TOL=1E-13):
 
     cell = ufl.Cell(elm_name[cell_tdim], gdim)
     mesh = build_mesh(mesh_vertices, cells_as_nodes, cell)
+
+    if mesh.num_cells() == 0:
+        return (mesh, {})
     
     entity_functions = {}
     # Is there cell_function to build?

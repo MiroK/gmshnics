@@ -72,6 +72,9 @@ def build_mesh(coordinates, cells, cell, mesh=None):
         mesh = Mesh(df.MPI.comm_self)
         assert mesh.mpi_comm().size == 1
 
+    if df.MPI.comm_world.rank > 0:
+        return mesh
+
     tdim = cell.topological_dimension()
     gdim = cell.geometric_dimension()
     module.fill_mesh(coordinates.flatten(), cells.flatten(), tdim, gdim, mesh)
@@ -84,11 +87,18 @@ def build_mesh(coordinates, cells, cell, mesh=None):
         has_duplicates = len(np.unique(x+1j*y)) != len(x)
     else:
         has_duplicates = False
+
+    strict = True
+    if not strict:
+        has_duplicates = False
     # ... edge lengths check
     _, e2v = mesh.init(1, 0), mesh.topology()(1, 0)
     v0, v1 = np.column_stack([e2v(e) for e in range(mesh.num_entities(1))])
     edge_lengths = np.linalg.norm(X[v0] - X[v1], 2, axis=1)
 
+
+    vols = min(c.volume() for c in df.cells(mesh))
+    assert vols > 0
     assert not has_duplicates and np.min(edge_lengths) > 1E-13, (has_duplicates, np.min(edge_lengths))
 
     # There should be non degenerate cells (additional check)
